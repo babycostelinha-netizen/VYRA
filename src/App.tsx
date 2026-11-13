@@ -73,6 +73,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [toast, setToast] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const t = copy[language];
@@ -81,12 +82,20 @@ export default function App() {
   const activeClip = activeProject?.clips.find((c) => c.id === selectedClip) ?? null;
 
   useEffect(() => {
-    window.vyra?.loadProjects().then(setProjects).catch(() => setToast("Could not load local projects"));
+    if (!window.vyra) { setProjectsLoaded(true); return; }
+    window.vyra.loadProjects().then((saved) => { setProjects(saved); setProjectsLoaded(true); }).catch(() => { setToast("Could not load local projects"); setProjectsLoaded(true); });
   }, []);
 
   useEffect(() => {
-    if (window.vyra) window.vyra.saveProjects(projects).catch(() => setToast("Could not save projects"));
-  }, [projects]);
+    if (projectsLoaded && window.vyra) window.vyra.saveProjects(projects).catch(() => setToast("Could not save projects"));
+  }, [projects, projectsLoaded]);
+
+  useEffect(() => {
+    const player = videoRef.current;
+    if (!player) return;
+    if (playing) player.play().catch(() => setPlaying(false));
+    else player.pause();
+  }, [playing, selectedClip]);
 
   useEffect(() => {
     if (!toast) return;
