@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("node:path");
+const { randomUUID } = require("node:crypto");
 const fs = require("node:fs/promises");
 
 const isDev = !app.isPackaged;
@@ -60,7 +61,7 @@ app.whenReady().then(() => {
     });
     if (result.canceled) return [];
     return result.filePaths.map((filePath) => ({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       name: path.basename(filePath),
       path: filePath,
       kind: /\.(mp3|wav|m4a|aac)$/i.test(filePath) ? "audio" :
