@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity, ArrowDownToLine, ArrowLeft, AudioLines, Bell, Check, ChevronDown,
-  CircleHelp, Clapperboard, Clock3, Command, Film, FolderOpen, FolderPlus,
-  Grid2X2, HardDrive, Home, Layers3, ListFilter, MoreHorizontal, Music2,
+  Activity, ArrowDownToLine, AudioLines, Bell, Check, ChevronDown,
+  Clapperboard, Film, FolderOpen, FolderPlus, Grid2X2, HardDrive, Home,
+  Layers3, MoreHorizontal, Music2,
   Play, Plus, Search, Settings2, SlidersHorizontal, Sparkles, Upload,
   Video, WandSparkles, X, Zap
 } from "lucide-react";
 import type { MediaAsset, TimelineClip, VyraProject } from "./types";
 
 type Page = "home" | "editor" | "assets" | "ai" | "settings";
-type Lang = "en" | "pt";
-
 const copy = {
   en: {
     workspace: "WORKSPACE", home: "Home", projects: "My projects", assets: "Media library",
