@@ -84,7 +84,8 @@ export default function App() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [selectedAudioId, setSelectedAudioId] = useState("");
   const [beatAnalysis, setBeatAnalysis] = useState<BeatAnalysis | null>(null);
-  const [analyzingAudio, setAnalyzingAudio] = useState(false);\n  const [captionSegments, setCaptionSegments] = useState<CaptionSegment[]>([{ id: crypto.randomUUID(), start: 0, end: 3, text: "" }]);
+  const [analyzingAudio, setAnalyzingAudio] = useState(false);
+  const [captionSegments, setCaptionSegments] = useState<CaptionSegment[]>([{ id: crypto.randomUUID(), start: 0, end: 3, text: "" }]);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [toast, setToast] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
