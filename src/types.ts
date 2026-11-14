@@ -28,6 +28,9 @@ export interface VyraBridge {
   saveProjects: (projects: VyraProject[]) => Promise<boolean>;
   importMedia: () => Promise<MediaAsset[]>;
   getMediaUrl: (filePath: string) => Promise<string>;
+  selectWhisperExecutable: () => Promise<string | null>;
+  selectWhisperModel: () => Promise<string | null>;
+  transcribeAudio: (inputPath: string, executablePath: string, modelPath: string) => Promise<string>;
 }
 
 declare global {
