@@ -27,6 +27,7 @@ export interface VyraBridge {
   loadProjects: () => Promise<VyraProject[]>;
   saveProjects: (projects: VyraProject[]) => Promise<boolean>;
   importMedia: () => Promise<MediaAsset[]>;
+  getMediaUrl: (filePath: string) => Promise<string>;
 }
 
 declare global {
