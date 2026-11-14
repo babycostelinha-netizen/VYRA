@@ -10,6 +10,16 @@ import type { MediaAsset, TimelineClip, VyraProject } from "./types";
 import { analyzeAudioBeats, type BeatAnalysis } from "./lib/beatDetection";
 
 type Page = "home" | "editor" | "assets" | "ai" | "settings";
+type CaptionSegment = { id: string; start: number; end: number; text: string };
+
+const formatSrtTime = (seconds: number) => {
+  const safe = Math.max(0, seconds);
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const wholeSeconds = Math.floor(safe % 60);
+  const milliseconds = Math.floor((safe % 1) * 1000);
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(wholeSeconds).padStart(2, "0")},${String(milliseconds).padStart(3, "0")}`;
+};
 const copy = {
   en: {
     workspace: "WORKSPACE", home: "Home", projects: "My projects", assets: "Media library",
@@ -74,7 +84,7 @@ export default function App() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [selectedAudioId, setSelectedAudioId] = useState("");
   const [beatAnalysis, setBeatAnalysis] = useState<BeatAnalysis | null>(null);
-  const [analyzingAudio, setAnalyzingAudio] = useState(false);
+  const [analyzingAudio, setAnalyzingAudio] = useState(false);\n  const [captionSegments, setCaptionSegments] = useState<CaptionSegment[]>([{ id: crypto.randomUUID(), start: 0, end: 3, text: "" }]);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [toast, setToast] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -192,6 +202,33 @@ export default function App() {
     }
   };
 
+  const addCaptionSegment = () => {
+    setCaptionSegments((current) => {
+      const last = current[current.length - 1];
+      const start = last ? Math.max(last.end, last.start + 0.5) : 0;
+      return [...current, { id: crypto.randomUUID(), start, end: start + 3, text: "" }];
+    });
+  };
+
+  const updateCaptionSegment = (id: string, patch: Partial<CaptionSegment>) => {
+    setCaptionSegments((current) => current.map((segment) => segment.id === id ? { ...segment, ...patch } : segment));
+  };
+
+  const exportCaptions = () => {
+    const validSegments = captionSegments.filter((segment) => segment.text.trim() && segment.end > segment.start);
+    if (!validSegments.length) { setToast("Add caption text and valid timings before exporting"); return; }
+    const srt = validSegments.map((segment, index) =>
+      `${index + 1}\\n${formatSrtTime(segment.start)} --> ${formatSrtTime(segment.end)}\\n${segment.text.trim()}`
+    ).join("\\n\\n");
+    const url = URL.createObjectURL(new Blob([srt], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "vyra-captions.srt";
+    link.click();
+    URL.revokeObjectURL(url);
+    setToast("SRT subtitle file exported");
+  };
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -249,7 +286,7 @@ export default function App() {
         )}
 
         {page === "assets" && <div className="page-content"><div className="welcome-row"><div><div className="eyebrow">YOUR CREATIVE ASSETS</div><h1>{t.assetsTitle}</h1><p>{t.assetsSub}</p></div><button className="primary-button" onClick={() => activeProject ? importMedia() : setToast("Open a project to import media")}><Upload size={16}/>{t.importFiles}</button></div><div className="asset-summary"><div><Film size={17}/><b>{allAssets.filter(a=>a.kind==="video").length}</b><span>Videos</span></div><div><Music2 size={17}/><b>{allAssets.filter(a=>a.kind==="audio").length}</b><span>Audio</span></div><div><Grid2X2 size={17}/><b>{allAssets.filter(a=>a.kind==="image").length}</b><span>Images</span></div></div>{filteredAssets.length?<div className="asset-grid">{filteredAssets.map(a=><div className="asset-card" key={a.id}><div className="asset-art">{a.kind==="audio"?<AudioLines size={27}/>:a.kind==="image"?<Grid2X2 size={27}/>:<Film size={27}/>}</div><b>{a.name}</b><small>{a.kind.toUpperCase()}</small></div>)}</div>:<div className="empty-projects"><div className="empty-icon"><FolderOpen size={24}/></div><div><strong>{t.noAssets}</strong><p>Import media from an open project to see it here.</p></div></div>}</div>}
-        {page === "ai" && <div className="page-content ai-page"><div className="ai-orb"><Sparkles size={34}/></div><div className="eyebrow">INTELLIGENCE FOR THE BEAUTIFUL GAME</div><h1>{t.aiTitle}</h1><p>{t.aiSub}</p><section className="beat-tool"><div className="beat-tool-heading"><div><span className="section-kicker">VYRA AI · AUDIO LAB</span><h2>Beat Intelligence</h2><p>Analyze your soundtrack locally and find rhythmic hit points for your next cut.</p></div><AudioLines size={25}/></div>{audioAssets.length ? <><div className="beat-controls"><select value={selectedAudioId} onChange={(event) => { setSelectedAudioId(event.target.value); setBeatAnalysis(null); }}><option value="">Choose an imported audio file</option>{audioAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}</select><button className="primary-button" disabled={!selectedAudioId || analyzingAudio} onClick={runBeatAnalysis}>{analyzingAudio ? <Activity size={16} className="spin-icon"/> : <Sparkles size={16}/>}{analyzingAudio ? "Analyzing..." : "Analyze beats"}</button></div>{beatAnalysis && <div className="beat-results"><div className="beat-stat"><strong>{beatAnalysis.bpm ?? "—"}</strong><span>ESTIMATED BPM</span></div><div className="beat-stat"><strong>{beatAnalysis.beatTimes.length}</strong><span>DETECTED HITS</span></div><div className="beat-stat"><strong>{beatAnalysis.duration}s</strong><span>TRACK LENGTH</span></div><div className="beat-markers">{beatAnalysis.beatTimes.slice(0, 120).map((time, index) => <i key={`${time}-${index}`} title={`${time}s`} style={{left: `${(time / beatAnalysis.duration) * 100}%`}}/> )}</div><small>Detected hit points · first 120 markers shown</small></div>}</> : <div className="beat-empty"><Music2 size={22}/><b>No audio files found yet</b><span>Open a project, import an MP3, WAV or M4A file, then return here.</span><button className="subtle-button" onClick={() => setPage(activeProject ? "editor" : "home")}>{activeProject ? "Go to editor" : "Go to projects"}</button></div>}</section><div className="ai-feature-grid"><div><Search size={20}/><b>Moment Finder</b><small>Find goals, skills and celebrations in your footage.</small><em>Planned</em></div><div className="feature-active"><AudioLines size={20}/><b>Beat Intelligence</b><small>Detect rhythm hits from your soundtrack.</small><em>Available now</em></div><div><WandSparkles size={20}/><b>Edit Assistant</b><small>Turn a creative brief into an edit plan.</small><em>Planned</em></div></div></div>}
+        {page === "ai" && <div className="page-content ai-page"><div className="ai-orb"><Sparkles size={34}/></div><div className="eyebrow">INTELLIGENCE FOR THE BEAUTIFUL GAME</div><h1>{t.aiTitle}</h1><p>{t.aiSub}</p><section className="beat-tool"><div className="beat-tool-heading"><div><span className="section-kicker">VYRA AI · AUDIO LAB</span><h2>Beat Intelligence</h2><p>Analyze your soundtrack locally and find rhythmic hit points for your next cut.</p></div><AudioLines size={25}/></div>{audioAssets.length ? <><div className="beat-controls"><select value={selectedAudioId} onChange={(event) => { setSelectedAudioId(event.target.value); setBeatAnalysis(null); }}><option value="">Choose an imported audio file</option>{audioAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}</select><button className="primary-button" disabled={!selectedAudioId || analyzingAudio} onClick={runBeatAnalysis}>{analyzingAudio ? <Activity size={16} className="spin-icon"/> : <Sparkles size={16}/>}{analyzingAudio ? "Analyzing..." : "Analyze beats"}</button></div>{beatAnalysis && <div className="beat-results"><div className="beat-stat"><strong>{beatAnalysis.bpm ?? "—"}</strong><span>ESTIMATED BPM</span></div><div className="beat-stat"><strong>{beatAnalysis.beatTimes.length}</strong><span>DETECTED HITS</span></div><div className="beat-stat"><strong>{beatAnalysis.duration}s</strong><span>TRACK LENGTH</span></div><div className="beat-markers">{beatAnalysis.beatTimes.slice(0, 120).map((time, index) => <i key={`${time}-${index}`} title={`${time}s`} style={{left: `${(time / beatAnalysis.duration) * 100}%`}}/> )}</div><small>Detected hit points · first 120 markers shown</small></div>}</> : <div className="beat-empty"><Music2 size={22}/><b>No audio files found yet</b><span>Open a project, import an MP3, WAV or M4A file, then return here.</span><button className="subtle-button" onClick={() => setPage(activeProject ? "editor" : "home")}>{activeProject ? "Go to editor" : "Go to projects"}</button></div>}</section><section className="caption-tool"><div className="caption-tool-heading"><div><span className="section-kicker">VYRA STUDIO · SUBTITLES</span><h2>Caption Studio</h2><p>Create and time subtitle lines, then export a standard SRT file. Automatic speech transcription will be connected when a real speech engine is integrated.</p></div><Video size={24}/></div><div className="caption-list">{captionSegments.map((segment, index) => <div className="caption-row" key={segment.id}><span className="caption-index">{String(index + 1).padStart(2, "0")}</span><label>Start (s)<input type="number" min="0" step="0.1" value={segment.start} onChange={(event) => updateCaptionSegment(segment.id, { start: Math.max(0, Number(event.target.value)) })}/></label><label>End (s)<input type="number" min="0.1" step="0.1" value={segment.end} onChange={(event) => updateCaptionSegment(segment.id, { end: Math.max(0.1, Number(event.target.value)) })}/></label><textarea value={segment.text} onChange={(event) => updateCaptionSegment(segment.id, { text: event.target.value })} placeholder="Type the subtitle for this moment..."/><button className="tiny-icon" title="Remove caption" onClick={() => setCaptionSegments((current) => current.filter((item) => item.id !== segment.id))}><X size={15}/></button></div>)}</div><div className="caption-actions"><button className="subtle-button" onClick={addCaptionSegment}><Plus size={14}/>Add caption line</button><button className="primary-button" onClick={exportCaptions}><ArrowDownToLine size={15}/>Export SRT</button></div><div className="caption-note"><span/>MANUAL SUBTITLE EDITOR · SPEECH-TO-TEXT ENGINE NOT CONNECTED</div></section><div className="ai-feature-grid"><div><Search size={20}/><b>Moment Finder</b><small>Find goals, skills and celebrations in your footage.</small><em>Planned</em></div><div className="feature-active"><AudioLines size={20}/><b>Beat Intelligence</b><small>Detect rhythm hits from your soundtrack.</small><em>Available now</em></div><div><WandSparkles size={20}/><b>Edit Assistant</b><small>Turn a creative brief into an edit plan.</small><em>Planned</em></div></div></div>}
         {page === "settings" && <div className="page-content settings-page"><div className="eyebrow">PREFERENCES</div><h1>{t.settings}</h1><p>Make VYRA feel like your own creative space.</p><div className="settings-section"><span className="section-kicker">{t.general}</span><div className="setting-row"><div><b>{t.language}</b><small>{t.languageSub}</small></div><select value={language} onChange={(e)=>setLanguage(e.target.value as "en"|"pt")}><option value="en">English</option><option value="pt">Português (Brasil)</option></select></div><div className="setting-row"><div><b>{t.appearance}</b><small>{t.appearanceSub}</small></div><span className="mode-pill"><span/>Dark</span></div><div className="setting-row"><div><b>{t.version}</b><small>VYRA Studio desktop foundation</small></div><span className="version-tag">0.1.0 · Alpha</span></div></div></div>}
       </main>
 
