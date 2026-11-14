@@ -218,8 +218,8 @@ export default function App() {
     const validSegments = captionSegments.filter((segment) => segment.text.trim() && segment.end > segment.start);
     if (!validSegments.length) { setToast("Add caption text and valid timings before exporting"); return; }
     const srt = validSegments.map((segment, index) =>
-      `${index + 1}\\n${formatSrtTime(segment.start)} --> ${formatSrtTime(segment.end)}\\n${segment.text.trim()}`
-    ).join("\\n\\n");
+      `${index + 1}\n${formatSrtTime(segment.start)} --> ${formatSrtTime(segment.end)}\n${segment.text.trim()}`
+    ).join("\n\n");
     const url = URL.createObjectURL(new Blob([srt], { type: "text/plain;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
