@@ -253,7 +253,7 @@ export default function App() {
         };
         const timingIndex = lines.indexOf(timing);
         return { id: crypto.randomUUID(), start: toSeconds(startText), end: toSeconds(endText), text: lines.slice(timingIndex + 1).join(" ") };
-      }).filter((segment): segment is CaptionSegment => Boolean(segment && segment.text && segment.end > segment.start));
+      }).filter((segment): segment is CaptionSegment => segment !== null && Boolean(segment.text) && segment.end > segment.start);
       if (!parsed.length) throw new Error("Whisper finished but returned no readable subtitle segments");
       setCaptionSegments(parsed);
       setToast("Transcription complete · " + parsed.length + " caption lines");
