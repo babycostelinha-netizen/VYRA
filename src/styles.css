@@ -41,7 +41,7 @@
 .caption-row{display:grid;grid-template-columns:30px 85px 85px minmax(120px,1fr) 25px;align-items:center;gap:9px;padding:10px;border:1px solid #273327;border-radius:9px;background:#0b100c}
 .caption-index{font:10px 'DM Mono';color:#a5ff62}
 .caption-row label{display:grid;gap:5px;color:#849180;font-size:9px;text-align:left}
-.caption-row input,.caption-row textarea{width:100%;min-width:0;border:1px solid #303b30;border-radius:6px;background:#121912;color:#e9f1e6;padding:8px;font:11px inherit;outline:none}
+.caption-row input,.caption-row textarea{width:100%;min-width:0;border:1px solid #303b30;border-radius:6px;background:#121912;color:#e9f1e6;padding:8px;font:11px Arial,sans-serif;outline:none}
 .caption-row input{height:31px}
 .caption-row textarea{height:49px;resize:vertical;line-height:1.5}
 .caption-row input:focus,.caption-row textarea:focus{border-color:#88b832}
