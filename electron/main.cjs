@@ -56,7 +56,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   protocol.handle("vyra-media", async (request) => {
-    const token = new URL(request.url).pathname.replace(/^\\//, "");
+    const token = new URL(request.url).pathname.slice(1);
     const filePath = mediaUrlTokens.get(token);
     if (!filePath) return new Response("Media not found", { status: 404 });
     try {
@@ -93,8 +93,8 @@ app.whenReady().then(() => {
       id: randomUUID(),
       name: path.basename(filePath),
       path: filePath,
-      kind: /\\.(mp3|wav|m4a|aac)$/i.test(filePath) ? "audio" :
-        /\\.(png|jpe?g)$/i.test(filePath) ? "image" : "video"
+      kind: [".mp3", ".wav", ".m4a", ".aac"].includes(path.extname(filePath).toLowerCase()) ? "audio" :
+        [".png", ".jpg", ".jpeg"].includes(path.extname(filePath).toLowerCase()) ? "image" : "video"
     }));
   });
 
