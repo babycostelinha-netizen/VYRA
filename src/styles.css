@@ -49,3 +49,13 @@
 .caption-note{display:flex;align-items:center;gap:8px;margin-top:16px;color:#71806e;font:8px 'DM Mono';letter-spacing:.8px}
 .caption-note span{width:6px;height:6px;border-radius:50%;background:#e4b75b;box-shadow:0 0 8px #e4b75b55}
 @media(max-width:700px){.caption-tool{padding:17px}.caption-row{grid-template-columns:24px 1fr 1fr 25px}.caption-row textarea{grid-column:2/4;grid-row:2}.caption-row>.tiny-icon{grid-column:4;grid-row:1}}
+
+/* VYRA AI — Local Whisper setup */
+.whisper-setup{display:grid;gap:9px;margin-top:19px;padding:14px;border:1px solid #293629;border-radius:10px;background:#0b100c}
+.whisper-file-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.whisper-file-row>div{display:grid;gap:4px;min-width:0}
+.whisper-file-row b{font-size:10px;color:#dce8d5}
+.whisper-file-row small,.whisper-run-row small{font-size:9px;color:#7f8c7d;overflow-wrap:anywhere}
+.whisper-run-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:5px}
+.whisper-run-row .primary-button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:700px){.whisper-file-row{align-items:flex-start;flex-direction:column}.whisper-run-row{align-items:flex-start;flex-direction:column}}
