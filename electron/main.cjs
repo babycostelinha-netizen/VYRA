@@ -3,6 +3,8 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { randomUUID } = require("node:crypto");
 const fs = require("node:fs/promises");
+const os = require("node:os");
+const { spawn } = require("node:child_process");
 
 protocol.registerSchemesAsPrivileged([{
   scheme: "vyra-media",
@@ -78,6 +80,61 @@ app.whenReady().then(() => {
     const token = randomUUID();
     mediaUrlTokens.set(token, resolvedPath);
     return `vyra-media://asset/${token}`;
+  });
+  ipcMain.handle("whisper:select-executable", async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: "Select whisper.cpp executable",
+      properties: ["openFile"],
+      filters: [{ name: "Whisper executable", extensions: ["exe"] }]
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+  ipcMain.handle("whisper:select-model", async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: "Select a Whisper model",
+      properties: ["openFile"],
+      filters: [{ name: "Whisper model", extensions: ["bin"] }, { name: "All files", extensions: ["*"] }]
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+  ipcMain.handle("whisper:transcribe", async (_event, inputPath, executablePath, modelPath) => {
+    for (const candidate of [inputPath, executablePath, modelPath]) {
+      if (typeof candidate !== "string" || !path.isAbsolute(candidate)) throw new Error("Invalid file path");
+      const stat = await fs.stat(candidate);
+      if (!stat.isFile()) throw new Error("Selected path is not a file");
+    }
+    const audioExtension = path.extname(inputPath).toLowerCase();
+    if (![".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"].includes(audioExtension)) {
+      throw new Error("Unsupported audio format. Use MP3, WAV, M4A, AAC, FLAC or OGG.");
+    }
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "vyra-whisper-"));
+    const outputBase = path.join(tempDir, "captions");
+    try {
+      await new Promise((resolve, reject) => {
+        const child = spawn(executablePath, ["-m", modelPath, "-f", inputPath, "-osrt", "-of", outputBase, "-l", "auto"], { windowsHide: true });
+        let stderr = "";
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (!settled) { settled = true; child.kill(); reject(new Error("Whisper timed out after 30 minutes")); }
+        }, 30 * 60 * 1000);
+        child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+        child.on("error", (error) => {
+          if (settled) return;
+          settled = true; clearTimeout(timeout);
+          reject(new Error("Could not start whisper.cpp: " + error.message));
+        });
+        child.on("close", (code) => {
+          if (settled) return;
+          settled = true; clearTimeout(timeout);
+          if (code === 0) resolve();
+          else reject(new Error(stderr.trim().slice(-1200) || "whisper.cpp exited with code " + code));
+        });
+      });
+      const srt = await fs.readFile(outputBase + ".srt", "utf8");
+      return srt;
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
   ipcMain.handle("media:import", async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
