@@ -59,7 +59,6 @@ const makeProject = (name: string): VyraProject => {
   const now = new Date().toISOString();
   return { id: crypto.randomUUID(), name: name.trim() || "Untitled edit", createdAt: now, updatedAt: now, clips: [], assets: [] };
 };
-const fileUrl = (path: string) => `file:///${path.replace(/\\/g, "/").replace(/^\//, "")}`;
 
 export default function App() {
   const [page, setPage] = useState<Page>("home");
@@ -71,6 +70,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [toast, setToast] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -89,11 +89,22 @@ export default function App() {
   }, [projects, projectsLoaded]);
 
   useEffect(() => {
+    let cancelled = false;
+    setPreviewUrl("");
+    setPlaying(false);
+    if (!activeClip || activeClip.kind !== "video" || !window.vyra) return;
+    window.vyra.getMediaUrl(activeClip.path)
+      .then((url) => { if (!cancelled) setPreviewUrl(url); })
+      .catch(() => { if (!cancelled) setToast("Could not open this video file"); });
+    return () => { cancelled = true; };
+  }, [activeClip?.id, activeClip?.path]);
+
+  useEffect(() => {
     const player = videoRef.current;
     if (!player) return;
     if (playing) player.play().catch(() => setPlaying(false));
     else player.pause();
-  }, [playing, selectedClip]);
+  }, [playing, selectedClip, previewUrl]);
 
   useEffect(() => {
     if (!toast) return;
@@ -207,7 +218,7 @@ export default function App() {
               <div className="editor-toolbar"><div><span className="editor-project-dot"/><strong>{activeProject.name}</strong><span className="saved-indicator"><Check size={12}/>{t.save}</span></div><div className="toolbar-actions"><button className="subtle-button" onClick={importMedia}><Upload size={15}/>{t.import}</button><button className="primary-button small" onClick={() => setToast("Export engine is being built next")}><ArrowDownToLine size={15}/>{t.export}</button></div></div>
               <div className="editor-workspace">
                 <section className="media-panel"><div className="panel-title"><span>{t.media}</span><button className="tiny-icon" onClick={importMedia}><Plus size={15}/></button></div><div className="media-list">{activeProject.assets.map((asset) => <div className="media-row" key={asset.id}><div className="media-type">{asset.kind === "audio" ? <Music2 size={15}/> : asset.kind === "image" ? <Grid2X2 size={15}/> : <Video size={15}/>}</div><button onClick={() => addToTimeline(asset)}><strong>{asset.name}</strong><small>{asset.kind.toUpperCase()} · Add to timeline</small></button><button className="tiny-icon" onClick={() => addToTimeline(asset)}><Plus size={14}/></button></div>)}{!activeProject.assets.length && <div className="panel-empty"><Upload size={21}/><b>{t.importFirst}</b><small>{t.importHint}</small><button className="subtle-button" onClick={importMedia}>{t.importFiles}</button></div>}</div></section>
-                <section className="preview-panel"><div className="panel-title"><span>{t.preview}</span><span className="preview-quality">FIT · 100%</span></div><div className="preview-stage">{activeClip && activeClip.kind === "video" ? <video ref={videoRef} src={fileUrl(activeClip.path)} controls={false} onEnded={() => setPlaying(false)}/> : <div className="preview-placeholder"><div className="preview-emblem"><Clapperboard size={27}/></div><strong>{activeClip?.name ?? "Your next highlight starts here."}</strong><small>{activeClip ? "Clip selected · preview ready" : "Select a clip or add media to your timeline"}</small></div>}<span className="preview-time">00:00:00:00</span></div><div className="preview-controls"><button className="tiny-icon" onClick={() => setPlaying((v) => !v)}>{playing ? <Activity size={16}/> : <Play size={16}/>}</button><span>00:00:00:00</span><span className="preview-divider"/> <span>00:00:00:00</span><button className="tiny-icon" onClick={() => setToast("Preview fit to panel")}><SlidersHorizontal size={15}/></button></div></section>
+                <section className="preview-panel"><div className="panel-title"><span>{t.preview}</span><span className="preview-quality">FIT · 100%</span></div><div className="preview-stage">{activeClip && activeClip.kind === "video" ? <video ref={videoRef} src={previewUrl || undefined} controls={false} preload="auto" playsInline onError={() => setToast("Video preview failed. Check the file format.")} onEnded={() => setPlaying(false)}/> : <div className="preview-placeholder"><div className="preview-emblem"><Clapperboard size={27}/></div><strong>{activeClip?.name ?? "Your next highlight starts here."}</strong><small>{activeClip ? "Clip selected · preview ready" : "Select a clip or add media to your timeline"}</small></div>}<span className="preview-time">00:00:00:00</span></div><div className="preview-controls"><button className="tiny-icon" onClick={() => setPlaying((v) => !v)}>{playing ? <Activity size={16}/> : <Play size={16}/>}</button><span>00:00:00:00</span><span className="preview-divider"/> <span>00:00:00:00</span><button className="tiny-icon" onClick={() => setToast("Preview fit to panel")}><SlidersHorizontal size={15}/></button></div></section>
                 <section className="properties-panel"><div className="panel-title"><span>{t.properties}</span><SlidersHorizontal size={14}/></div>{activeClip ? <div className="properties-content"><span className="property-label">{t.selectClip}</span><strong className="clip-name">{activeClip.name}</strong><label>Start (seconds)<input type="number" min="0" step="0.5" value={activeClip.start} onChange={(e) => updateProject(activeProject.id, (p) => ({...p, clips:p.clips.map((c) => c.id === activeClip.id ? {...c,start:Number(e.target.value)} : c)}))}/></label><label>Duration (seconds)<input type="number" min="0.5" step="0.5" value={activeClip.duration} onChange={(e) => updateProject(activeProject.id, (p) => ({...p, clips:p.clips.map((c) => c.id === activeClip.id ? {...c,duration:Number(e.target.value)} : c)}))}/></label><label>Track<select value={activeClip.track} onChange={(e) => updateProject(activeProject.id, (p) => ({...p, clips:p.clips.map((c) => c.id === activeClip.id ? {...c,track:Number(e.target.value)} : c)}))}><option value={0}>Video 1</option><option value={1}>Audio 1</option><option value={2}>Overlay 1</option></select></label><button className="danger-button" onClick={removeClip}><X size={14}/>{t.remove}</button></div> : <div className="properties-empty"><SlidersHorizontal size={21}/><p>{t.noSelection}</p></div>}</section>
               </div>
               <section className="timeline-panel"><div className="timeline-heading"><div><span>{t.timeline}</span><small>{activeProject.clips.length} clips · 3 tracks</small></div><button className="tiny-icon" onClick={() => setToast("More timeline tools are coming soon")}><MoreHorizontal size={17}/></button></div><div className="timeline-ruler">{Array.from({length:9},(_,i)=><span key={i}>{String(i*5).padStart(2,"0")}s</span>)}</div><div className="track-row"><div className="track-label"><Video size={14}/>V1</div><div className="track-lane">{activeProject.clips.filter((c)=>c.track===0).map((clip)=><button key={clip.id} style={{left:`${clip.start*3}%`,width:`${Math.max(5,clip.duration*3)}%`}} className={selectedClip===clip.id?"timeline-clip selected":"timeline-clip"} onClick={()=>{setSelectedClip(clip.id);if(clip.kind==="video")setPlaying(false)}}><span>{clip.name}</span><i/></button>)}{!activeProject.clips.some(c=>c.track===0)&&<span className="lane-empty">{t.emptyTrack}</span>}</div></div><div className="track-row"><div className="track-label"><Music2 size={14}/>A1</div><div className="track-lane audio-lane">{activeProject.clips.filter((c)=>c.track===1).map((clip)=><button key={clip.id} style={{left:`${clip.start*3}%`,width:`${Math.max(5,clip.duration*3)}%`}} className={selectedClip===clip.id?"timeline-clip audio-clip selected":"timeline-clip audio-clip"} onClick={()=>setSelectedClip(clip.id)}><span>{clip.name}</span></button>)}{!activeProject.clips.some(c=>c.track===1)&&<span className="lane-empty">{t.emptyTrack}</span>}</div></div><div className="track-row"><div className="track-label"><Layers3 size={14}/>V2</div><div className="track-lane overlay-lane"><span className="lane-empty">{t.emptyTrack}</span></div></div></section>
